@@ -25,7 +25,11 @@
 // Reference: Daniel Lemire, "Bounding the cost of the intersection between
 // a small array and a large array," Daniel Lemire's blog, June 27, 2019.
 // https://lemire.me/blog/2019/06/27/bounding-the-cost-of-the-intersection-between-a-small-array-and-a-large-array/
-
+//
+// Vaguely related: 
+// Daniel Lemire, "Speeding up independent binary searches by interleaving them," in Daniel
+// Lemire's blog, September 14, 2019, https://lemire.me/blog/2019/09/14/speeding-up-independent-binary-searches-by-interleaving-them/.
+//
 #include <algorithm>
 #include <array>
 #include <cstddef>
