@@ -62,7 +62,7 @@ int main() {
   }
   uint64_t sum{};
 #if defined(__AVX512VL__) && __AVX512VL__ == 1
-  pretty_print(N, bytes, "sse_inet_aton", bench([&test_data, &sum]() {
+  pretty_print(N, bytes, "avx512_inet_aton", bench([&test_data, &sum]() {
                  for (const std::string &s : test_data) {
                   uint32_t ipv4;
                   auto err = parse_ipv4_avx512vl(s.data(), s.size(), &ipv4);

@@ -1,5 +1,14 @@
 #include <x86intrin.h>
 
+// Code from Shreesh Adiga with slight modifications by Daniel Lemire.
+// This code is experimental.
+
+#ifndef unlikely
+#define unlikely(x) __builtin_expect(x, 0)
+#endif
+#ifndef likely
+#define   likely(x) __builtin_expect(x, 1)
+#endif
 inline int parse_ipv4_avx512vl(const char *input, size_t len, uint32_t *ptr) {
     if (unlikely(len > 15)) return 0;
     int error = 0;
@@ -44,19 +53,15 @@ inline int parse_ipv4_avx512vl(const char *input, size_t len, uint32_t *ptr) {
     // expand the compressed_vec to have all octets with 4 digits (zero padding)
     __m128i padded_digits_vec = _mm_maskz_expand_epi8(expand_mask, compressed_vec);
 
-    // Error if the leading digit is 0 e.g. 02, 012 etc will be treated as error.
-    // Extract the most significant digit from num_digits_between_dots and check if it is 0.
-    // If there is only 1 digit then skip the check as zero is valid number
-    __m128i shifted_vec = _mm_shuffle_epi8(padded_digits_vec,
-            _mm_sub_epi32(
-                _mm_setr_epi8(4, 0x0, 0x0, 0x0, 8, 0x0, 0x0, 0x0, 12, 0x0, 0x0, 0x0, 16, 0x0, 0x0, 0x0),
-                num_digits_between_dots));
-    __mmask8 more_than_1digit = _mm_cmpgt_epu32_mask(_mm_sub_epi32(num_digits_between_dots, _mm_set1_epi32(0x1)), _mm_setzero_si128());
-    error |= _mm_mask_cmpeq_epu32_mask(more_than_1digit, _mm_setzero_si128(), shifted_vec);
     // multiply digits by 100, 10, 1 respectively and sum them to a 32 bit num
     __m128i res = _mm_dpbusd_epi32(_mm_setzero_si128(), padded_digits_vec, _mm_set1_epi32(0x010a6400));
     // error if any of the 4 octet is bigger than 255
     error |= _mm_cmpgt_epu32_mask(res, _mm_set1_epi32(0xff));
+    // Reject leading zeros (e.g. 02, 012). Equivalent to res < 10^(num_digits-1):
+    // min value per octet is {_, 0, 10, 100} indexed by num_digits.
+    __m128 min_lookup = _mm_castsi128_ps(_mm_setr_epi32(0, 0, 10, 100));
+    __m128i min_value = _mm_castps_si128(_mm_permutevar_ps(min_lookup, num_digits_between_dots));
+    error |= _mm_cmplt_epu32_mask(res, min_value);
 
     if (likely(!error)) {
         // assemble the bytes and convert from network order to host order and write to memory
